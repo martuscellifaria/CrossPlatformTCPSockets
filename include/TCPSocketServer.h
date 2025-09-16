@@ -34,8 +34,8 @@ private:
     void processMessage(const char* cTelegram);
 
 public:
-    bool start(int port);
-    void stop();
+    bool serverStart(int port);
+    void serverStop();
     bool sendMessage(const std::string& sMessage);
 
 private:

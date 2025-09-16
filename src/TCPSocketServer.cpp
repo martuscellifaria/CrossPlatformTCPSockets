@@ -9,7 +9,7 @@ TCPServer::TCPServer() {
 
 TCPServer::~TCPServer() {
     if (m_bRunning){
-        stop();
+        serverStop();
     }
     cleanupNetwork();
 }
@@ -36,10 +36,10 @@ void TCPServer::readThreadFunction() {
         if (bytesReceived > 0) {
             buffer[bytesReceived] = '\0';
             std::lock_guard<std::mutex> lock(m_mConsoleMutex);
-            std::cout << "Received: " << buffer << std::endl;
+            processMessage(buffer);
         } else if (bytesReceived == 0) {
             std::lock_guard<std::mutex> lock(m_mConsoleMutex);
-            std::cout << "Client disconnected" << std::endl;
+            std::cout << "Client disconnected" << '\n';
             close(m_iClientSocket);
             m_iClientSocket = INVALID_SOCKET;
         } else {
@@ -50,11 +50,14 @@ void TCPServer::readThreadFunction() {
     }
 }
 
-bool TCPServer::start(int port) 
-{
+void TCPServer::processMessage(const char* cTelegram) {
+    std::cout << "Received " << cTelegram << '\n';
+}
+
+bool TCPServer::serverStart(int port) {
     m_iServerSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (m_iServerSocket == INVALID_SOCKET) {
-        std::cerr << "Socket creation failed" << std::endl;
+        std::cerr << "Socket creation failed" << '\n';
         return false;
     }
 
@@ -71,24 +74,21 @@ bool TCPServer::start(int port)
     serverAddr.sin_port = htons(port);
 
     if (bind(m_iServerSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "Bind failed" << std::endl;
+        std::cerr << "Bind failed" << '\n';
         return false;
     }
 
     if (listen(m_iServerSocket, 1) == SOCKET_ERROR) {
-        std::cerr << "Listen failed" << std::endl;
+        std::cerr << "Listen failed" << '\n';
         return false;
     }
 
-    std::cout << "Server started on port " << port << std::endl;
+    std::cout << "Server started on port " << port << '\n';
     m_bRunning = true;
     
-    // Start the read thread
     m_tReadThread = std::thread(&TCPServer::readThreadFunction, this);
-
-    // Accept clients in the main thread
     while (m_bRunning) {
-        std::cout << "Waiting for client connection..." << std::endl;
+        std::cout << "Waiting for client connection..." << '\n';
         
         sockaddr_in clientAddr;
 #ifdef _WIN32
@@ -100,7 +100,7 @@ bool TCPServer::start(int port)
         SOCKET newClient = accept(m_iServerSocket, (sockaddr*)&clientAddr, &clientAddrSize);
         if (newClient == INVALID_SOCKET) {
             if (m_bRunning) {
-                std::cerr << "Accept failed" << std::endl;
+                std::cerr << "Accept failed" << '\n';
             }
             continue;
         }
@@ -108,7 +108,7 @@ bool TCPServer::start(int port)
         {
             std::lock_guard<std::mutex> lock(m_mConsoleMutex);
             std::cout << "Client connected: " << inet_ntoa(clientAddr.sin_addr) 
-                        << ":" << ntohs(clientAddr.sin_port) << std::endl;
+                        << ":" << ntohs(clientAddr.sin_port) << '\n';
         }
 
         m_iClientSocket = newClient;
@@ -117,7 +117,7 @@ bool TCPServer::start(int port)
     return true;
 }
 
-void TCPServer::stop() {
+void TCPServer::serverStop() {
     m_bRunning = false;
     if (m_iClientSocket != INVALID_SOCKET) {
         shutdown(m_iClientSocket, SHUT_RDWR);
@@ -132,19 +132,17 @@ void TCPServer::stop() {
     if (m_tReadThread.joinable()) {
         m_tReadThread.join();
     }
-    
-    std::cout << "Server stopped" << std::endl;
 }
 
 bool TCPServer::sendMessage(const std::string& message) {
     if (m_iClientSocket == INVALID_SOCKET) {
-        std::cerr << "No client connected" << std::endl;
+        std::cerr << "No client connected" << '\n';
         return false;
     }
 
     int result = send(m_iClientSocket, message.c_str(), message.length(), 0);
     if (result == SOCKET_ERROR) {
-        std::cerr << "Send failed" << std::endl;
+        std::cerr << "Send failed" << '\n';
         return false;
     }
     

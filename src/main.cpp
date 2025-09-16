@@ -4,7 +4,7 @@ int main() {
     TCPServer server;
     
     std::thread serverThread([&server]() {
-        server.start(8080);
+        server.serverStart(8080);
     });
     
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -21,7 +21,7 @@ int main() {
         server.sendMessage(input);
     }
     
-    server.stop();
+    server.serverStop();
     if (serverThread.joinable()) {
         serverThread.join();
     }
