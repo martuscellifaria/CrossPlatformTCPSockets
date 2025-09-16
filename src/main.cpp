@@ -1,10 +1,11 @@
 #include "TCPSocketServer.h"
 
 int main() {
-    TCPServer server;
+	std::unique_ptr<TCPServer> server = std::make_unique<TCPServer>();
+    //TCPServer server;
     
     std::thread serverThread([&server]() {
-        server.serverStart(8080);
+        server->serverStart(8080);
     });
     
     std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -18,10 +19,10 @@ int main() {
             break;
         }
         
-        server.sendMessage(input);
+        server->sendMessage(input);
     }
     
-    server.serverStop();
+    server->serverStop();
     if (serverThread.joinable()) {
         serverThread.join();
     }
